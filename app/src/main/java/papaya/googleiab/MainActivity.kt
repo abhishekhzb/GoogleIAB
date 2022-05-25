@@ -2,6 +2,7 @@ package papaya.googleiab
 
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.util.Log
 import android.widget.Button
 import com.android.billingclient.api.*
 
@@ -12,23 +13,19 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-
         button = findViewById(R.id.buyNow)
 
-        val skuList = ArrayList<String>()
-        skuList.add("test_prod_1")
-
         val purchasesUpdatedListener = PurchasesUpdatedListener{
-            billingResult, purchses ->
+                billingResult, purchses ->
         }
 
-        var billingClient = BillingClient.newBuilder(this)
+        val billingClient = BillingClient.newBuilder(this)
             .setListener(purchasesUpdatedListener)
             .enablePendingPurchases().build()
 
         button.setOnClickListener {
 
-            billingClient.startConnection(object : BillingClientStateListener{
+            billingClient.startConnection(object : BillingClientStateListener {
                 override fun onBillingServiceDisconnected() {
 //                    TODO("Not yet implemented")
                 }
@@ -38,19 +35,36 @@ class MainActivity : AppCompatActivity() {
 
                     if (billingResult.responseCode == BillingClient.BillingResponseCode.OK){
 
-                        val params = SkuDetailsParams.newBuilder()
-                        params.setSkusList(skuList)
-                            .setType(BillingClient.SkuType.INAPP)
-
-                        billingClient.querySkuDetailsAsync(params.build()){
-                            billingResult, skuDetailsList ->
-
-                            for (skuDetails in skuDetailsList!!) {
-                                val flowPurchase = BillingFlowParams.newBuilder()
-                                    .setSkuDetails(skuDetails)
+                        val productList =
+                            listOf(
+                                QueryProductDetailsParams.Product.newBuilder()
+                                    .setProductId("test_prod_1")
+                                    .setProductType(BillingClient.ProductType.INAPP)
                                     .build()
+                            )
 
-                                val responseCode = billingClient.launchBillingFlow(this@MainActivity, flowPurchase).responseCode
+                        val params = QueryProductDetailsParams.newBuilder().setProductList(productList).build()
+
+                        billingClient.queryProductDetailsAsync(params) {
+                                billingResult,
+                                productDetailsList ->
+
+                            Log.e("responseCode",""+productDetailsList)
+                            for (productDetails in productDetailsList) {
+                                val productDetailsParamsList =
+                                    listOf(
+                                        BillingFlowParams.ProductDetailsParams.newBuilder()
+                                            .setProductDetails(productDetails)
+                                            //.setofferToken(offerToken)
+                                            .build()
+                                    )
+                                val billingFlowParams =
+                                    BillingFlowParams.newBuilder()
+                                        .setProductDetailsParamsList(productDetailsParamsList).build()
+
+                                // Launch the billing flow
+                                val responseCode = billingClient.launchBillingFlow(this@MainActivity, billingFlowParams).responseCode
+                                Log.e("responseCode",""+responseCode)
                             }
                         }
                     }
@@ -60,3 +74,4 @@ class MainActivity : AppCompatActivity() {
         }
     }
 }
+
